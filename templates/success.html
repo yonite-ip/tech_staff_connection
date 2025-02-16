@@ -4,56 +4,96 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='ai_theme_success.css') }}">
-    <title>הצלחה</title>
+    <title>Client Infrastructre</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
-        function toggleDetails(id) {
-            const details = document.getElementById(id);
-            details.classList.toggle('active');
-        }
+        document.addEventListener("DOMContentLoaded", function () {
+            var socket = io();
+            var switchList = document.querySelector('.results-grid');
     
-        function openBrowser(switch_ip) {
-            fetch(`/open-browser/${switch_ip}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" }
-            })
-            .then(response => response.json())
-            .then(data => {
-                alert(data.message);  // Show success or error message
-            })
-            .catch(error => console.error("Error:", error));
-        }
-    </script>    
+            function startScanning() {
+                fetch('/scan-switches')
+                    .then(response => response.json())
+                    .then(data => console.log("🔄 Scan started:", data))
+                    .catch(error => console.error("❌ Failed to start scan:", error));
+    
+                socket.on('switch_found', function(data) {
+                    if (switchList) {
+                        let newBox = document.createElement('div');
+                        newBox.classList.add('result-box', 'success'); 
+                        newBox.dataset.ip = data.ip;  // Store IP for event delegation
+                        newBox.innerHTML = `<span class="ip">${data.ip}</span>`;
+                        switchList.appendChild(newBox);
+                        console.log(`✅ Switch found: ${data.ip}`);
+                    } else {
+                        console.error("❌ results-grid not found!");
+                    }
+                });
+    
+                socket.on('scan_complete', function() {
+                    let statusElement = document.getElementById('status');
+                    if (statusElement) {
+                        statusElement.textContent = "";
+                    }
+                    console.log("✔ Scan complete!");
+                });
+    
+                socket.on('connect_error', function(error) {
+                    console.error("❌ Socket.io connection error:", error);
+                });
+            }
+    
+            // ✅ ADDING CLICK FUNCTION TO OPEN BROWSER ✅
+            function openBrowser(switch_ip) {
+                console.log("Opening browser for:", switch_ip);  // Debugging
+    
+                fetch(`/open-browser/${switch_ip}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);  // Show success or error message
+                })
+                .catch(error => console.error("Error:", error));
+            }
+    
+            // ✅ EVENT LISTENER FOR DYNAMICALLY ADDED SWITCHES ✅
+            switchList.addEventListener("click", function(event) {
+                let clickedBox = event.target.closest(".result-box");
+                if (clickedBox) {
+                    let switch_ip = clickedBox.dataset.ip;
+                    openBrowser(switch_ip);
+                }
+            });
+    
+            startScanning();
+        });
+    </script>
+    
+    
 </head>
 <body>
     <div class="container" dir="ltr">
-        <h1>הצלחה!</h1>
-        <p>חיבור בוצע בהצלחה לכתובת IP: <strong>{{ ip }}</strong></p>
+        <p>Connected to IP: <strong>{{ ip }}</strong></p>
 
-        {% if ping_results %}
-            <div class="results-container">
-                <h2>מתגים שנמצאו:</h2>
-                <div class="results-grid">
-                    {% for switch, success in ping_results.items() %}
-                    <div class="result-box {% if success %}success{% else %}failed{% endif %}" 
-                            onclick="openBrowser('{{ switch }}')">
-                        <span class="ip">{{ switch }}</span>
-                        <span class="status">{{ '' if success else 'לא זמין' }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
+        <div class="results-container">
+            <h2>Switches found</h2>
+            <div class="results-grid" id="switchList">
+                <!-- Switches will be added here dynamically -->
             </div>
-        {% else %}
-            <p>לא נמצאו מתגים ברשת.</p>
-        {% endif %}
+        </div>
+        <p id="status">מחפש מתגים זמינים...</p>
+        
 
         <div class="button-container">
             <form method="GET" action="/beecom-cloud">
-                <button class="cta-button" type="submit">הסבה לביקום ענן</button>
+                <button class="cta-button" type="submit">Converting to Beecom Cloud</button>
             </form>
 
             <!-- Close All Components Button -->
             <form method="POST" action="{{ url_for('close') }}">
-                <button type="submit">סגור את כל הרכיבים</button>
+                <button type="submit">Close Connections</button>
             </form>
         </div>    
     </div>

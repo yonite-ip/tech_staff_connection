@@ -1,11 +1,14 @@
 import os
 import subprocess
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
+import threading
+from flask_socketio import SocketIO
 from dotenv import load_dotenv
 
 app = Flask(__name__)
 
 load_dotenv()
+socketio = SocketIO(app)
 
 winbox_path = os.getenv("WINBOX_PATH")
 vpn_phonebook_path = os.getenv("VPN_PHONEBOOK_PATH")
@@ -167,16 +170,20 @@ def show_failure():
 @app.route('/success')
 def success():
     ip = request.args.get('ip')
+    return render_template('success.html', ip=ip)  # Load page immediately
 
-    # Scan for switches in the range 10.0.0.247 - 10.0.0.253
-    ping_results = {}
-    for switch_ip in range(247, 254):  # Scanning 10.0.0.247 - 10.0.0.253
-        address = f"10.0.0.{switch_ip}"
-        success = ping_address(address)
-        if success:  # Only include reachable switches
-            ping_results[address] = success
 
-    return render_template('success.html', ip=ip, ping_results=ping_results)
+@app.route('/scan-switches')
+def scan_switches():
+    def scan():
+        for switch_ip in range(247, 254):
+            address = f"10.0.0.{switch_ip}"
+            if ping_address(address):  # Only send successful pings
+                socketio.emit('switch_found', {'ip': address})
+        socketio.emit('scan_complete')  # Notify frontend when done
+
+    threading.Thread(target=scan).start()  # Run in background
+    return jsonify({"status": "scanning started"}), 202
 
 
 @app.route('/open-browser/<switch_ip>', methods=['POST'])
