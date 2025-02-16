@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='ai_theme_success.css') }}">
+    <title>הצלחה</title>
+    <script>
+        function toggleDetails(id) {
+            const details = document.getElementById(id);
+            details.classList.toggle('active');
+        }
+    
+        function openBrowser(switch_ip) {
+            fetch(`/open-browser/${switch_ip}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" }
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);  // Show success or error message
+            })
+            .catch(error => console.error("Error:", error));
+        }
+    </script>    
+</head>
+<body>
+    <div class="container" dir="ltr">
+        <h1>הצלחה!</h1>
+        <p>חיבור בוצע בהצלחה לכתובת IP: <strong>{{ ip }}</strong></p>
+
+        {% if ping_results %}
+            <div class="results-container">
+                <h2>מתגים שנמצאו:</h2>
+                <div class="results-grid">
+                    {% for switch, success in ping_results.items() %}
+                    <div class="result-box {% if success %}success{% else %}failed{% endif %}" 
+                            onclick="openBrowser('{{ switch }}')">
+                        <span class="ip">{{ switch }}</span>
+                        <span class="status">{{ '' if success else 'לא זמין' }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% else %}
+            <p>לא נמצאו מתגים ברשת.</p>
+        {% endif %}
+
+        <div class="button-container">
+            <form method="GET" action="/beecom-cloud">
+                <button class="cta-button" type="submit">הסבה לביקום ענן</button>
+            </form>
+
+            <!-- Close All Components Button -->
+            <form method="POST" action="{{ url_for('close') }}">
+                <button type="submit">סגור את כל הרכיבים</button>
+            </form>
+        </div>    
+    </div>
+
+    <div class="sip-container">
+        <h2>SIP servers</h2>
+        <a class="sip-button" href="https://practicall.ip-com.co.il/" target="_blank">PR-1</a>
+        <a class="sip-button" href="https://practicall3.ip-com.co.il/" target="_blank">PR-3</a>
+        <a class="sip-button" href="https://practicall5.ip-com.co.il/" target="_blank">PR-5</a>
+        <a class="sip-button" href="https://practicall3.ip-com.co.il/" target="_blank">PR-6</a>	
+        <a class="sip-button" href="https://practicall7.ip-com.co.il/" target="_blank">PR-7</a>
+    </div>
+
+</body>
+</html>
